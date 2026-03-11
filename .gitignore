@@ -1,4 +1,4 @@
-./node_modules
-./lists.json
-./yarn.lock
+node_modules/
+lists.json
+yarn.lock
 .env
