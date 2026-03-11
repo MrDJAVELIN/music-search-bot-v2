@@ -18,7 +18,6 @@ export async function getClientId() {
 
     if (match) {
       clientId = match[1];
-      console.log("SC client_id:", clientId);
       return clientId;
     }
   }

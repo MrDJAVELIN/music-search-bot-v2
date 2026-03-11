@@ -13,7 +13,11 @@ const bot = new Telegraf(process.env.TOKEN);
 bot.use(session());
 
 bot.start((ctx) => {
-  ctx.reply("Напиши название трека");
+  ctx.reply(
+    "Бот позволяет искать и скачивать треки с SoundCloud.\n" +
+      "Просто отправьте название песни, выберите вариант из списка, и получите трек в формате MP3." +
+      "\n\ndeveloped by @djvlnn"
+  );
 });
 
 bot.on("text", async (ctx) => {
@@ -48,7 +52,15 @@ bot.action(/dl_(.+)_(.+)/, async (ctx) => {
   const track = list[index];
   if (!track) return ctx.reply("Трек не найден");
 
-  await ctx.reply(`Скачиваю и отправляю: ${track.title} - ${track.author}`);
+  const user = ctx.from?.username
+    ? "@" + ctx.from.username
+    : `${ctx.from?.first_name || "unknown"} (${ctx.from?.id})`;
+
+  const trackName = `${track.title} - ${track.author}`;
+
+  console.log(`🎧 ${user} → ${trackName}`);
+
+  await ctx.reply(`Скачиваю и отправляю: ${trackName}`);
 
   const stream = await streamTrack(track.url);
   const safeTitle = track.title.replace(/[\/\\?%*:|"<>]/g, "_") + ".mp3";
