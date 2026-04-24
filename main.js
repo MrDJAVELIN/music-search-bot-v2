@@ -21,11 +21,60 @@ bot.start((ctx) => {
 });
 
 bot.on("text", async (ctx) => {
-  const query = ctx.message.text;
-  if (!query) return;
+  const queryRaw = ctx.message?.text?.trim();
+  if (!queryRaw) return ctx.reply("⚠️ | Введите название песни");
 
-  const tracks = await searchTracks(query);
-  if (!tracks.length) return ctx.reply("Ничего не найдено");
+  const isGroup = ctx.chat?.type === "group" || ctx.chat?.type === "supergroup";
+  let searchQuery = queryRaw;
+
+  if (isGroup) {
+    if (!ctx.message.entities || ctx.message.entities[0].type !== "bot_command")
+      return;
+    if (!queryRaw.startsWith("/msearch")) return;
+    searchQuery = queryRaw.replace("/msearch", "").trim();
+    if (!searchQuery)
+      return ctx.reply("⚠️ | Введите название песни после команды /msearch");
+  }
+
+  const searchingMsg = await ctx.reply("🔎 | Поиск: 0 сек.");
+  let seconds = 0;
+
+  const timer = setInterval(async () => {
+    seconds++;
+    try {
+      await ctx.editMessageText(`🔎 | Поиск: ${seconds} сек.`);
+    } catch (err) {}
+  }, 1000);
+
+  const start = Date.now();
+  let tracks = [];
+  try {
+    tracks = await searchTracks(searchQuery);
+  } catch (err) {
+    console.error(err);
+    clearInterval(timer);
+    await ctx.reply("❌ | Ошибка при поиске треков");
+    return;
+  }
+
+  clearInterval(timer);
+
+  const duration = ((Date.now() - start) / 1000).toFixed(2);
+
+  if (!tracks.length) {
+    try {
+      await ctx.telegram.editMessageText(
+        searchingMsg.chat.id,
+        searchingMsg.message_id,
+        undefined,
+        `⚠️ | Ничего не найдено (${duration} сек.)`
+      );
+    } catch (err) {
+      console.error("Не удалось обновить сообщение поиска:", err.message);
+      await ctx.reply(`⚠️ | Ничего не найдено (${duration} сек.)`);
+    }
+    return;
+  }
 
   const listId = Date.now().toString(36);
   addList(listId, tracks);
@@ -37,7 +86,14 @@ bot.on("text", async (ctx) => {
     )
   ]);
 
-  await ctx.reply("Найденные треки:", Markup.inlineKeyboard(buttons));
+  try {
+    await ctx.deleteMessage(searchingMsg.message_id);
+  } catch (err) {}
+
+  await ctx.reply(
+    `✅ | Найдено ${tracks.length} треков за ${duration} сек.:`,
+    Markup.inlineKeyboard(buttons)
+  );
 });
 
 bot.action(/dl_(.+)_(.+)/, async (ctx) => {
